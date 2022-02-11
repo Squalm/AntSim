@@ -332,3 +332,8 @@ ASALocalRun/
 
 # Local History for Visual Studio
 .localhistory/
+
+# Not saved gifs
+ants.gif
+food.gif
+ph.gif
