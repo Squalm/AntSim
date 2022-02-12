@@ -1,8 +1,9 @@
 using Plots
+using ProgressBars
 
-steps = 1200
+steps = 2000
 dims = 100
-ants = 150
+ants = 200
 ph = zeros(Float64, dims, dims)
 ant = fill(trunc(Int, dims/2), ants, 2)
 prev_ant = fill(trunc(Int, dims/2), ants, 2)
@@ -19,18 +20,19 @@ ant_cache = [zeros(Float64, dims, dims) for _ in 1:steps]
 food[35:40, 35:40] .= 1.0
 food[20:30, 80:90] .= 1.0
 food[60:65, 60:65] .= 1.0
+food[1:2, 1:100] .= 1.0
 
-for i in 1:steps
+for i in ProgressBar(1:steps)
 
     global go = ([0 -1] => -Inf, [0 1] => -Inf, [-1 0] => -Inf, [1 0] => -Inf)
     global prev_ant
 
     # reduce all pheremone levels
-    for x in 1:length(ph)
-        if x % 100 == 0
+    if i % 50 == 0
+        for x in 1:length(ph)
             ph[x] = max(ph[x] - 0.1, 0.0)
-        end # if
-    end # for
+        end # for
+    end # if
 
     _ant_alt = deepcopy(ant)
 
@@ -104,20 +106,20 @@ for i in 1:steps
 end # for
 
 println("Rendering...")
-anim = @animate for i = 1:steps
+anim = @animate for i in ProgressBar(1:steps)
     heatmap(ant_cache[i], clim=(0,1))
 end
  
 gif(anim, "ants.gif", fps = 20)
 
-anim1 = @animate for i = 1:steps
+anim1 = @animate for i in ProgressBar(1:steps)
     heatmap(ph_cache[i], clim=(0,1))
 end
 
 gif(anim1, "ph.gif", fps = 20)
 
-anim2 = @animate for i in 1:steps
+anim2 = @animate for i in ProgressBar(1:steps)
     heatmap(food_cache[i], clim=(0,1))
 end # for
 
-gif(anim2, "food.gif", fps= 60)
+gif(anim2, "food.gif", fps= 100)
