@@ -6,7 +6,7 @@ steps = 1000
 A = ones(Float64, dims, dims)
 A2 = ones(Float64, dims, dims)
 B = zeros(Float64, dims, dims)
-B[5:15, 5:15] .= 1.0
+B[95:105, 95:105] .= 1.0
 B2 = zeros(Float64, dims, dims)
 cache = (A = [zeros(Float64, dims, dims) for _ in 1:steps], B = [zeros(Float64, dims, dims) for _ in 1:steps])
 
@@ -39,7 +39,7 @@ for i in ProgressBar(1:steps)
     global A
     global B
 
-    Threads.@Threads for x in 1:dims
+    Threads.@threads for x in 1:dims
         for y in 1:dims
 
             ABB = A[x, y]*B[x, y]*B[x, y]
