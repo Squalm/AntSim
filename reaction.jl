@@ -39,7 +39,7 @@ for i in ProgressBar(1:steps)
     global A
     global B
 
-    for x in 1:dims
+    Threads.@Threads for x in 1:dims
         for y in 1:dims
 
             ABB = A[x, y]*B[x, y]*B[x, y]
@@ -61,4 +61,4 @@ anim = @animate for i in ProgressBar(1:steps)
     heatmap(cache.A[i], clim=(0,1))
 end # for
 
-gif(anim, "reaction.gif", fps = 20)
+gif(anim, "reaction.gif", fps = 40)
