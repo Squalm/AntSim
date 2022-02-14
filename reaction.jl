@@ -2,13 +2,14 @@ using ProgressBars
 using Plots
 using ColorSchemes
 
-dims = 300
-steps = 10000
+dims = 100
+steps = 300
 A = ones(Float64, dims, dims)
 A2 = ones(Float64, dims, dims)
 B = zeros(Float64, dims, dims)
-B[95:105, 95:105] .= 1.0
-B[150:155, 160:165] .= 1.0
+m = trunc(Int, dims/2)
+B[m-1:m+1, 10:dims-10] .= 1.0
+B[10:dims-10, m-1:m+1] .= 1.0
 B2 = zeros(Float64, dims, dims)
 cache = (A = [zeros(Float64, dims, dims) for _ in 1:steps], B = [zeros(Float64, dims, dims) for _ in 1:steps])
 
@@ -42,7 +43,9 @@ for i in ProgressBar(1:steps)
     global B
 
     Threads.@threads for x in 1:dims
+        kill = 0.05 + x/dims * 0.02
         for y in 1:dims
+            feed = 0.04 + y/dims * 0.04
 
             ABB = A[x, y]*B[x, y]*B[x, y]
             A2[x, y] = A[x, y] + (D_A * diffuse((x, y), A) - ABB + feed * (1 - A[x, y])) * delta
@@ -60,7 +63,7 @@ for i in ProgressBar(1:steps)
 end # for
 
 anim = @animate for i in ProgressBar(1:trunc(Int, steps/10))
-    heatmap(cache.A[i*10], clim=(0,1), palette = :phase)
+    heatmap(cache.A[i*10], clim=(0,1), c = :gist_rainbow)
 end # for
 
 gif(anim, "reaction.gif", fps = 120)
