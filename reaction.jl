@@ -2,16 +2,17 @@ using ProgressBars
 using Plots
 using ColorSchemes
 
-dims = 100
-steps = 300
+dims = 1000
+steps = 20000
 A = ones(Float64, dims, dims)
 A2 = ones(Float64, dims, dims)
 B = zeros(Float64, dims, dims)
 m = trunc(Int, dims/2)
-B[m-1:m+1, 10:dims-10] .= 1.0
-B[10:dims-10, m-1:m+1] .= 1.0
+B[m-1:m+1, 100:dims-100] .= 1.0
+B[100:dims-100, m-1:m+1] .= 1.0
 B2 = zeros(Float64, dims, dims)
-cache = (A = [zeros(Float64, dims, dims) for _ in 1:steps], B = [zeros(Float64, dims, dims) for _ in 1:steps])
+cache = (A = [zeros(Float64, dims, dims) for _ in 1:trunc(Int, steps/10)], 
+         B = [zeros(Float64, dims, dims) for _ in 1:trunc(Int, steps/10)])
 
 global feed = 0.055
 global kill = 0.062
@@ -54,16 +55,17 @@ for i in ProgressBar(1:steps)
         end # for
     end # for
 
-    cache.A[i] = deepcopy(A2)
-    cache.B[i] = deepcopy(B2)
+    chop = trunc(Int, i/10 - 1/11) + 1
+    cache.A[chop] = deepcopy(A2)
+    cache.B[chop] = deepcopy(B2)
 
-    A = cache.A[i]
-    B = cache.B[i]
+    A = cache.A[chop]
+    B = cache.B[chop]
 
 end # for
 
 anim = @animate for i in ProgressBar(1:trunc(Int, steps/10))
-    heatmap(cache.A[i*10], clim=(0,1), c = :gist_rainbow)
+    heatmap(cache.A[i], clim=(0,1), c = :gist_rainbow)
 end # for
 
 gif(anim, "reaction.gif", fps = 120)
