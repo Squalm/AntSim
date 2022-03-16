@@ -8,19 +8,19 @@ function nearby(c, boids, r)
     return [(b, sqrt((c[1] - b[1])^2 + (c[2] - b[2])^2 )) for b in boids if sqrt((b[1] % w - c[1])^2 + (b[2] - c[2])^2) <= r]
 end
 
-function keepin(boid, w, h, edgeforce = 0.05)    
+function keepin(boid, w, h, edgeforce = 1)    
     margin = 20
 
     if boid[1] < margin
-        boid[3] += edgeforce * exp(-boid[1])
+        boid[3] += edgeforce * (margin - boid[1])
     elseif boid[1] > w-margin
-        boid[3] -= edgeforce * exp(boid[1] - w)
+        boid[3] -= edgeforce * (boid[1] - (w - margin))
     end # if
 
     if boid[2] < margin
-        boid[4] += edgeforce * exp(-boid[2])
+        boid[4] += edgeforce * (margin - boid[2])
     elseif boid[2] > h-margin
-        boid[4] -= edgeforce * exp(boid[2] - w)
+        boid[4] -= edgeforce * (boid[2] - (h - margin))
     end # if
 
     return boid
@@ -42,7 +42,7 @@ function limit(boid)
     
 end
 
-function separation(boid::Vector{Float64}, boidpush = 3.0)
+function separation(boid::Vector{Float64}, boidpush = 4.0)
     force = [0.0, 0.0]
 
     near = [x[1] for x in nearby(boid[1:2], boids, vision) if x[2] <= vision]
@@ -54,10 +54,10 @@ function separation(boid::Vector{Float64}, boidpush = 3.0)
             # sigmoid derivative
             force[1] += 1/(1 + exp(-b[1]+boid[1])) * 
                 (1 - 1/(1 + exp(-b[1]+boid[1]))) * 
-                (boid[1] - b[1]) * sign(b[1] - boid[1])
+                sign(b[1] - boid[1])
             force[2] += 1/(1 + exp(-b[2]+boid[2])) * 
                 (1 - 1/(1 + exp(-b[2]+boid[2]))) * 
-                (boid[2] - b[2]) * sign(b[2] - boid[2])
+                sign(b[2] - boid[2])
         end # if
     end # for
 
@@ -87,7 +87,7 @@ function cohesion(boid::Vector{Float64}, centerpull = 0.05)
 
 end
 
-function alignment(boid::Vector{Float64}, turnFactor = 0.05)
+function alignment(boid::Vector{Float64}, turnFactor = 0.08)
 
     avg = [0.0, 0.0]
 
@@ -119,9 +119,9 @@ end
 w = 200
 h = 200
 steps = 300
-vision = 10
+vision = 15
 delta = 1.0
-n = 100
+n = 30
 
 boids = Vector{Float64}[[(rand()-0.5)*w*2+w/2, (rand()-0.5)*h*2+h/2, (rand()-0.5) * 5, (rand()-0.5) * 5] for i in 1:n] # x,y,dx,dy 
 
