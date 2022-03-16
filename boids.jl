@@ -142,7 +142,7 @@ anim = @animate for _ in ProgressBar(1:steps)
     x = [boid[1] for boid in boids]
     y = [boid[2] for boid in boids]
 
-    scatter(x, y, xlims=(-w/2, w * 3/2), ylims=(-h/2, h * 3/2))
+    scatter(x, y, xlims=(-w/4, w * 5/4), ylims=(-h/4, h * 5/4))
 
 end # for
 
