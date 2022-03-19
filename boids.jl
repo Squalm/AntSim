@@ -42,24 +42,27 @@ function limit(boid)
     
 end
 
-function separation(boid::Vector{Float64}, boidpush = 4.0)
-    force = [0.0, 0.0]
+function separation(boid::Vector{Float64}, boidpush = 2.0)
+    center = [0.0, 0.0]
 
     near = [x[1] for x in nearby(boid[1:2], boids, vision) if x[2] <= vision]
     for b in near
         if b != boid
-            # 1/x
-            #force[1] += 1/(b[1] - boid[1])
-            #force[2] += 1/(b[2] - boid[2])
-            # sigmoid derivative
-            force[1] += 1/(1 + exp(-b[1]+boid[1])) * 
-                (1 - 1/(1 + exp(-b[1]+boid[1]))) * 
-                sign(b[1] - boid[1])
-            force[2] += 1/(1 + exp(-b[2]+boid[2])) * 
-                (1 - 1/(1 + exp(-b[2]+boid[2]))) * 
-                sign(b[2] - boid[2])
+            center += b[1:2]
         end # if
     end # for
+
+    center ./= length(near)
+
+    force = [0.0, 0.0]
+    force[1] += 1/(center[1] - boid[1])
+    force[2] += 1/(center[2] - boid[2])
+    #force[1] = 1/(1 + exp(-center[1]+boid[1])) * 
+    #    (1 - 1/(1 + exp(-center[1]+boid[1]))) * 
+    #    sign(center[1] - boid[1])
+    #force[2] = 1/(1 + exp(-center[2]+boid[2])) * 
+    #    (1 - 1/(1 + exp(-center[2]+boid[2]))) * 
+    #    sign(center[2] - boid[2])
 
     boid[3] += force[1] * boidpush
     boid[4] += force[2] * boidpush
@@ -103,8 +106,8 @@ function alignment(boid::Vector{Float64}, turnFactor = 0.08)
 
         avg ./= length(near)
 
-        boid[3] += (avg[1] - boid[3]) * turnFactor
-        boid[4] += (avg[2] - boid[4]) * turnFactor
+        boid[3] = boid[3] + avg[1] * turnFactor
+        boid[4] = boid[4] + avg[2] * turnFactor
 
     end # if
 
@@ -118,10 +121,10 @@ end
 
 w = 200
 h = 200
-steps = 300
-vision = 15
-delta = 1.0
-n = 30
+steps = 500
+vision = 20
+delta = 0.5
+n = 50
 
 boids = Vector{Float64}[[(rand()-0.5)*w*2+w/2, (rand()-0.5)*h*2+h/2, (rand()-0.5) * 5, (rand()-0.5) * 5] for i in 1:n] # x,y,dx,dy 
 
