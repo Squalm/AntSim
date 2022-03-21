@@ -71,7 +71,7 @@ function separation(boid::Vector{Float64}, boidpush = 2.0)
 
 end
 
-function cohesion(boid::Vector{Float64}, centerpull = 0.05)
+function cohesion(boid::Vector{Float64}, centerpull = 0.08)
 
     center = Float64[0.0, 0.0]
     near = [x[1] for x in nearby(boid[1:2], boids, vision) if x[2] <= vision]
@@ -90,7 +90,7 @@ function cohesion(boid::Vector{Float64}, centerpull = 0.05)
 
 end
 
-function alignment(boid::Vector{Float64}, turnFactor = 0.08)
+function alignment(boid::Vector{Float64}, turnFactor = 0.1)
 
     avg = [0.0, 0.0]
 
@@ -124,7 +124,7 @@ h = 200
 steps = 500
 vision = 20
 delta = 0.5
-n = 50
+n = 80
 
 boids = Vector{Float64}[[(rand()-0.5)*w*2+w/2, (rand()-0.5)*h*2+h/2, (rand()-0.5) * 5, (rand()-0.5) * 5] for i in 1:n] # x,y,dx,dy 
 
