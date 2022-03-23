@@ -1,12 +1,16 @@
 using Plots
 using ProgressBars
 
-steps = 2000
+steps = 200
 dims = 100
 ants = 200
+wander = 0.5
+speed = 1
+global dirs = [-pi/4, 0, pi/4]
+
 ph = zeros(Float64, dims, dims)
-ant = fill(trunc(Int, dims/2), ants, 2)
-prev_ant = fill(trunc(Int, dims/2), ants, 2)
+ant = Vector{Float64}[Float64[dims/2, dims/2, rand()*2*pi] for _ in 1:ants]
+prev_ant = Vector{Float64}[Float64[dims/2, dims/2, rand()*2*pi] for _ in 1:ants]
 holding_food = fill(false, ants)
 food = zeros(Float64, dims, dims)
 space = fill(true, dims, dims)
@@ -20,11 +24,40 @@ ant_cache = [zeros(Float64, dims, dims) for _ in 1:steps]
 food[35:40, 35:40] .= 1.0
 food[20:30, 80:90] .= 1.0
 food[60:65, 60:65] .= 1.0
-food[1:2, 1:100] .= 1.0
 
+function walk(a::Vector{Float64}, ph, strength = 0.2)
+    
+    # Check in front, right and left
+    ant[3] += dirs[findmax([ph[togrid(a[1] + cos(a[3] + dir) * speed), togrid(a[2] + sin(a[3] + dir) * speed)] 
+        for dir in dirs])] * strength
+
+    return a
+end
+
+function togrid(coord::Float64)
+    return round(Int, coord)
+end
+
+function update(a::Vector{Float64})
+    return [
+        a[1] + cos(a[3]) * speed, 
+        a[2] + sin(a[3]) * speed, 
+        a[3]]
+end
+
+function grabfood(a::Int, holding_food)
+
+    if !holding_food[a]
+        # check around
+
+    end # if
+
+    return a
+end
+
+#==
 for i in ProgressBar(1:steps)
 
-    global go = ([0 -1] => -Inf, [0 1] => -Inf, [-1 0] => -Inf, [1 0] => -Inf)
     global prev_ant
 
     # reduce all pheremone levels
@@ -104,6 +137,7 @@ for i in ProgressBar(1:steps)
     end # for
 
 end # for
+==#
 
 println("Rendering...")
 anim = @animate for i in ProgressBar(1:steps)
