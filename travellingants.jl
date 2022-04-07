@@ -54,7 +54,10 @@ function brute(points::Vector{Vector{Float64}})
 end # function
 
 """
+	ants(points, n) -> (order, distance)
 Heck yeah Biomimicry with ant colonisation!  
+Returns a route by sending `n` ants around in a loop.
+(This is heuristic)
 """
 function ants(points::Vector{Vector{Float64}}, n = 10000)
 
@@ -87,7 +90,7 @@ function ants(points::Vector{Vector{Float64}}, n = 10000)
 		# Update the pheremones
 		prev = 1
 		for i in order[1:end-1]
-			ph[prev][i-1] += exp(-distance)
+			ph[prev][i-1] += exp(-distance) * 1/s(points[prev], points[i])
 			prev = i
 		end # for
 
@@ -133,12 +136,13 @@ function draw(points::Vector{Vector{Float64}}, order::Vector{Int})
 
 end # function
 
-t = gen_points(13, 2)
+t = gen_points(17, 2)
 #draw(t, brute(t))
 
 a = ants(t, 500000)
-#b = brute(t)
 println("Ants solution: " * string(a))
-#println("Brute solution: " * string(b))
 draw(t, a.order)
+
+#b = brute(t)
+#println("Brute solution: " * string(b))
 #draw(t, b.order)
