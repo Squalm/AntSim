@@ -1,12 +1,23 @@
 using Plots
 using ProgressBars
 
+theme(:dark)
+
 """
 Returns an array of all the boids within a radius r about centre c.
 """
 function nearby(c, boids, r)
     return [(b, sqrt((c[1] - b[1])^2 + (c[2] - b[2])^2 )) for b in boids if sqrt((b[1] % w - c[1])^2 + (b[2] - c[2])^2) <= r]
 end
+
+function nearby(c, boids)
+    return [(b, sqrt((c[1] - b[1])^2 + (c[2] - b[2])^2 )) for b in boids]
+end # function
+
+function s(a, b)
+    @assert (size(a) == size(b))
+    return sqrt(sum([(a[d] - b[d])^2 for d in 1:length(a)]))
+end # function
 
 function keepin(boid, w, h, edgeforce = 1)    
     margin = 20
@@ -27,9 +38,7 @@ function keepin(boid, w, h, edgeforce = 1)
 
 end
 
-function limit(boid)
-
-    speedlimit = 10
+function limit(boid, speedlimit)
     
     speed = sqrt(boid[3]^2 + boid[4]^2)
 
@@ -42,30 +51,22 @@ function limit(boid)
     
 end
 
-function separation(boid::Vector{Float64}, boidpush = 2.0)
-    center = [0.0, 0.0]
+function separation(boid::Vector{Float64}, boidpush = 1.0)
 
-    near = [x[1] for x in nearby(boid[1:2], boids, vision) if x[2] <= vision]
-    for b in near
-        if b != boid
-            center += b[1:2]
-        end # if
-    end # for
+    n = nearby(boid[1:2], boids, vision)
 
-    center ./= length(near)
+    n = [x for x in n if s(x[1][1:2], boid[1:2]) > 0]
 
-    force = [0.0, 0.0]
-    force[1] += 1/(center[1] - boid[1])
-    force[2] += 1/(center[2] - boid[2])
-    #force[1] = 1/(1 + exp(-center[1]+boid[1])) * 
-    #    (1 - 1/(1 + exp(-center[1]+boid[1]))) * 
-    #    sign(center[1] - boid[1])
-    #force[2] = 1/(1 + exp(-center[2]+boid[2])) * 
-    #    (1 - 1/(1 + exp(-center[2]+boid[2]))) * 
-    #    sign(center[2] - boid[2])
+    if length(n) > 0
 
-    boid[3] += force[1] * boidpush
-    boid[4] += force[2] * boidpush
+        near = [x[1] for x in n]
+        center = near[findmin([x[2] for x in n])[2]][1:2]
+
+        distance = s(center, boid[1:2])
+        boid[3] += boidpush * (boid[1] - center[1]) / distance^2
+        boid[4] += boidpush * (boid[2] - center[2]) / distance^2
+
+    end # if
 
     return boid
 
@@ -121,12 +122,13 @@ end
 
 w = 200
 h = 200
-steps = 500
-vision = 20
-delta = 0.5
-n = 80
+steps = 700
+vision = 8
+delta = 0.2
+n = 30
+speedlimit = 5
 
-boids = Vector{Float64}[[(rand()-0.5)*w*2+w/2, (rand()-0.5)*h*2+h/2, (rand()-0.5) * 5, (rand()-0.5) * 5] for i in 1:n] # x,y,dx,dy 
+boids = Vector{Float64}[[rand()*3/2*w-w/4, rand()*3/2*h-h/4, (rand()-0.5) * 5, (rand()-0.5) * 5] for i in 1:n] # x,y,dx,dy 
 
 anim = @animate for _ in ProgressBar(1:steps)
 
@@ -134,11 +136,11 @@ anim = @animate for _ in ProgressBar(1:steps)
 
     # Separation, alignment, cohesion
 
-    boids = cohesion.(boids)
+    #boids = cohesion.(boids)
     boids = separation.(boids)
-    boids = alignment.(boids)
+    #boids = alignment.(boids)
     boids = keepin.(boids, w, h)
-    boids = limit.(boids)
+    boids = limit.(boids, speedlimit)
         
     boids = update.(boids, delta)
 
@@ -149,4 +151,4 @@ anim = @animate for _ in ProgressBar(1:steps)
 
 end # for
 
-gif(anim, "boids.gif", fps = 20)
+gif(anim, "boids.gif", fps = 40)
