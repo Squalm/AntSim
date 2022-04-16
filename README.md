@@ -1,2 +1,10 @@
-# AntSim
- Slightly Crude simulation of an ant colony with visualisation
+# Emergence
+A collection of simulations demonstrating emergent behaviour.
+
+## ants.jl
+
+## travellingants.jl
+
+## rection.jl
+
+## boids.jl
