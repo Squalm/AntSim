@@ -51,7 +51,7 @@ function limit(boid, speedlimit)
     
 end
 
-function separation(boid::Vector{Float64}, boidpush = 1.0)
+function separation(boid::Vector{Float64}, boidpush = 5.0)
 
     n = nearby(boid[1:2], boids, vision)
 
@@ -122,11 +122,11 @@ end
 
 w = 200
 h = 200
-steps = 700
-vision = 8
+steps = 1000
+vision = 10
 delta = 0.2
-n = 30
-speedlimit = 5
+n = 80
+speedlimit = 10
 
 boids = Vector{Float64}[[rand()*3/2*w-w/4, rand()*3/2*h-h/4, (rand()-0.5) * 5, (rand()-0.5) * 5] for i in 1:n] # x,y,dx,dy 
 
@@ -136,9 +136,9 @@ anim = @animate for _ in ProgressBar(1:steps)
 
     # Separation, alignment, cohesion
 
-    #boids = cohesion.(boids)
+    boids = cohesion.(boids)
     boids = separation.(boids)
-    #boids = alignment.(boids)
+    boids = alignment.(boids)
     boids = keepin.(boids, w, h)
     boids = limit.(boids, speedlimit)
         
@@ -147,7 +147,7 @@ anim = @animate for _ in ProgressBar(1:steps)
     x = [boid[1] for boid in boids]
     y = [boid[2] for boid in boids]
 
-    scatter(x, y, xlims=(-w/4, w * 5/4), ylims=(-h/4, h * 5/4))
+    scatter(x, y, xlims=(0, w), ylims=(0, h))
 
 end # for
 
