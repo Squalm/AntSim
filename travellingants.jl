@@ -61,7 +61,7 @@ Returns a route by sending `n` ants around in a loop.
 """
 function ants(points::Vector{Vector{Float64}}, n = 10000)
 
-	ph = Vector{Float64}[[0.1 for _2 in 2:length(points)] for _ in 1:length(points)]
+	ph = Vector{Float64}[[1.0 for n in 2:length(points)] for c in 1:length(points)]
 
 	for _ in ProgressBar(1:n)
 
@@ -136,10 +136,10 @@ function draw(points::Vector{Vector{Float64}}, order::Vector{Int})
 
 end # function
 
-t = gen_points(17, 2)
+t = gen_points(100, 2)
 #draw(t, brute(t))
 
-a = ants(t, 500000)
+a = ants(t, 50000)
 println("Ants solution: " * string(a))
 draw(t, a.order)
 
