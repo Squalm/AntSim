@@ -4,39 +4,53 @@ using ColorSchemes
 
 theme(:dark)
 
-dims = 400
-steps = 3000
+# Constants
+dims = 200
+steps = 1000
+interval = 40
+
+# Variables for storing the state.
 A = ones(Float64, dims, dims)
 A2 = ones(Float64, dims, dims)
 B = zeros(Float64, dims, dims)
-m = trunc(Int, dims/2)
-#B[m-1:m+1, 100:dims-100] .= 1.0
-#B[100:dims-100, m-1:m+1] .= 1.0
+B2 = zeros(Float64, dims, dims)
 
 # Seed B
-#==for o in 3:trunc(Int, dims/50)-2
-    B[o*50-1:o*50+1, 100:dims-100] .= 0.9
-end # for==#
 for _ in 1:dims
     B[max(1, trunc(Int, rand() * dims)), max(1, trunc(Int, rand() * dims))] = 0.9
 end # for
 
 # Setup caches
-B2 = zeros(Float64, dims, dims)
-cache = (A = [zeros(Float64, dims, dims) for _ in 1:trunc(Int, steps/10)], 
-         B = [zeros(Float64, dims, dims) for _ in 1:trunc(Int, steps/10)])
+cache = (A = [zeros(Float64, dims, dims) for _ in 1:trunc(Int, steps/interval)], 
+         B = [zeros(Float64, dims, dims) for _ in 1:trunc(Int, steps/interval)])
 
-global feed = 0.05 # 0.055 
-global kill = 0.066 # 0.062
+# Global constants
+global feed = 0.055 
+global kill = 0.062
 global D_A = 1.0
 global D_B = 0.5
 global delta = 1.0
 
+"""
+    diffuse(coords, C) -> Float64
+
+Returns the amount of chemical C (where `C` is a 2D matrix)
+at `coords` after some diffusion.
+"""
 function diffuse(coords::Tuple, C)
         
     #weights = [[0.05, 0.2, 0.05], [0.2, -1.0, 0.2], [0.05, 0.2, 0.05]]
 
-    return sum( # this is not a perfect approximation
+    #== 
+    In order to calculate the new value for this cell:
+    Create a weighted average of all the cells around it,
+    (orthogonally adjacent cells have a weight of 0.2 and 
+    diagonally adjacten cells have a weight of 0.05).
+    Then subtract the value in the current cell.
+    If any of the adjacent cells don't exist, assume
+    they have the value of the current cell.
+    ==#
+    return sum(
         get(C, (coords[1] + 1, coords[2]), C[coords[1], coords[2]]) *0.2 +
         get(C, (coords[1] - 1, coords[2]), C[coords[1], coords[2]]) *0.2 +
         get(C, (coords[1], coords[2] + 1), C[coords[1], coords[2]]) *0.2 +
@@ -50,40 +64,73 @@ function diffuse(coords::Tuple, C)
 
 end
 
+# Looping in order to break up the task.
 for loop in 1:20
 
-    interval = 40
-
+    # Iterate for 'steps' many steps...
     for i in ProgressBar(1:steps)
 
+        # Disambiguate access to A and B we defined above
         global A
         global B
 
+        # For each x coordinate (columns)...
         Threads.@threads for x in 1:dims
+
             #kill = 0.05 + x/dims * 0.02
+            
+            # For each y coordinate (now rows)...
+            # This therefore goes through every cell.
             for y in 1:dims
+
                 #feed = 0.04 + y/dims * 0.04
 
+                # Calculate the amount of ABB which will become BBB.
                 ABB = A[x, y]*B[x, y]*B[x, y]
-                A2[x, y] = A[x, y] + (D_A * diffuse((x, y), A) - ABB + feed * (1 - A[x, y])) * delta
-                B2[x, y] = B[x, y] + (D_B * diffuse((x, y), B) + ABB - (kill + feed) * B[x, y]) * delta
+
+                #==
+                Calculate the amount of A that should be at these coordinates
+                and store it in A2 (so that all the new values are calculated
+                before the old ones are used.
+                ==#
+                A2[x, y] = A[x, y] + (D_A * diffuse((x, y), A) - ABB 
+                           + feed * (1 - A[x, y])) * delta
+
+                # Do the same for B.
+                B2[x, y] = B[x, y] + (D_B * diffuse((x, y), B) + ABB 
+                           - (kill + feed) * B[x, y]) * delta
 
             end # for
         end # for
 
+        # Store the current frame in the cache.
+        # The chop is used to not store only necessary frames.
         chop = trunc(Int, i/interval - 1/(interval + 1)) + 1
+
+        #== 
+        Since arrays are just pointers in julia, a copy
+        is created so that when A2/B2 is modified later it
+        does not also modify the cache.
+        ==#
         cache.A[chop] = deepcopy(A2)
         cache.B[chop] = deepcopy(B2)
 
+        # Update A and B with their new values so that 
+        # the next iteration can run.
         A = cache.A[chop]
         B = cache.B[chop]
 
     end # for
 
-    anim = @animate for i in ProgressBar(1:trunc(Int, steps/interval))
-        heatmap(cache.A[i], clim=(0,1), c = :gist_rainbow)
+    # For each relevant frame in the cache...
+    anim = @animate for frame in ProgressBar(cache.A)
+
+        # Create a heatmap showing the amount of A.
+        heatmap(frame, clim=(0,1), c = :gist_rainbow)
+        
     end # for
 
+    # Great a gif of all the heatmaps.
     gif(anim, "reaction"*string(loop)*".gif", fps = 30)
 
 end # for
