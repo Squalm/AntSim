@@ -221,6 +221,7 @@ function update(boid::Vector{Float64}, delta)
 
 end
 
+# Initialise constants
 w = 200
 h = 200
 steps = 1000
@@ -229,6 +230,8 @@ delta = 0.2
 n = 50
 speedlimit = 10
 
+# Create n boids in random locations including
+# just outside of thet bounding box.
 boids = Vector{Float64}[[rand()*3/2*w-w/4, rand()*3/2*h-h/4, (rand()-0.5) * 5, (rand()-0.5) * 5] for i in 1:n] # x,y,dx,dy 
 
 anim = @animate for _ in ProgressBar(1:steps)
