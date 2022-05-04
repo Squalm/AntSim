@@ -1,10 +1,3 @@
-# Emergence
-A collection of simulations demonstrating emergent behaviour.
+Please see the latest release for an html file explaining this repository.
 
-## ants.jl
-
-## travellingants.jl
-
-## rection.jl
-
-## boids.jl
+tl;dr: A collection of models showing unusual/unpredictable behaviour from simple rules.
