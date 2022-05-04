@@ -595,7 +595,7 @@ Throughout development I experimented with a number of different starting pherom
 In the next version I made most of the changes to make the program into its final state. I cleaned up the code and broke it into more convenient functions which could run for multiple ants and I added the ability to plot the pheromone intensities on a heatmap. I also added the whole separate optimisation algorithm which went through some iteration to reach a state where it worked as intended. The most interesting part of this involving finding the best algorithm to uncross the lines. Initially I thought to swap the locations of the two end points of the cross in the list. I think that repeating this process would eventually uncross all the lines, but it would require many more steps than the final reflection idea I came to later by drawing out a number of crossed lines with points on paper and figuring out how I intuitively wanted to uncross them and what this would do to the list of points.
 
 ## Information
-Language used: Julia
+Language used: Julia  
 Packages imported: ProgressBars, Plots, Combinatorics, StatsBase
 
 ---
@@ -900,7 +900,7 @@ In the next versions, I was still experimenting with functions in the forces. In
 After a few further small modifications and quality of life improvements I had produced the model described above.
 
 ## Information
-Language used: Julia
+Language used: Julia  
 Packages imported: ProgressBars, Plots
 
 ---
@@ -1108,7 +1108,7 @@ Very little changed between my initial prototype and final product. Some time wa
 ![220218 REACT.gif](220218%20REACT.gif)
 
 ## Information
-Language used: Julia
+Language used: Julia  
 Packages imported: ProgressBars, Plots, ColorSchemes
 
 ---
@@ -1219,17 +1219,46 @@ So we've modified our value of $b$ to give a slightly better answer than before.
 
 The partial derivatives of each of the variables with respect to $Y$ can be calculated as follows:
 $$ \frac {\delta \hat Y} {\delta Y} = - \frac Y {\hat Y} + \frac {1 - Y}{1 - \hat Y} $$
-***WORK IN PROGRESS**
+Now that we have this value, we can feed it back into the last layer of neurons to calculate the actual values of $\delta W, \delta b, \delta A$ (or more accurate, the gradient at the tangent to the point on the curve where each parameter lies). This process can then be repeated for each layer backwards (using the $\delta A$ instead of the $\delta \hat Y$ value). So using these calculated gradients for all of the layers, we can update the parameters by moving slightly downwards along each gradient in `gradient_descent.jl`.
+
+### Final steps
+The final step is to log all of the parameters and the results of the neural net training.
+
+Then this loop repeats with the new parameters, each loop aims to move the parameters slightly closer to the correct answer each time. After all the loops are done, we can return the important parts of the neural network for use in unlabelled data/in the real world.
 
 ## Development
 Code snippets can be found in Appendix D.
 
 ### Prototype
+The prototype was not particularly smartly made and it barely worked. However, it was a very important step in production from where I could improve. Initially I was using reLU functions in all of the hidden layers, which I changed later.
 
 ### Modifications
+Most of my modifications were: debugging, testing and implementing new ideas. In summary: I made significant progress and learnt a lot but I did not produce a neural network which could really demonstrate completing a task like mimicking human text in all that a complex way (although I can still demonstrate it).  
+  
+The first change I made was to prepare and begin testing new activation functions: tanh and softmax (for final layer) rather than reLU and sigmoid I was using previously. This involved working out the derivatives for these functions too and implementing those. It took me a longer than expected to work out why these activation functions weren't working as expected or were giving errors.  
+  
+First off I was getting errors because there was some notation I wasn't using correctly in my code and also I was using Float type values when iterating through the neural network and sometimes those would become so tiny they would become 0 which would cause errors in division (specifically in the softmax function, $\frac {e^{-x}} {\sum e^{-x}}$ where the sum would become 0). I also encountered the opposite problem of dividing by infinity.  
+  
+To solve these issues I decided to limit the weights and biases to 100/1,000/10,000 (I changed the value I used but these would all do the job) because at that point, once passing through tanh the value will be so close to 1 or -1 it doesn't matter where it's 10,000 or 10,000,000. I also had to use BigFloats which seriously slowed down my code but resolved a number of issues. These values allow julia to manage arbitrary precision in the back end so tanh (for example) will never give a value of 1. and values will never tick over to 0, even when they are much much smaller than a Float64 could handle. I sped up the code a lot by reducing the data size and the network size so this didn't end up being an issue.  
+  
+I did realise that this was actually a problem common when using activation functions like tanh called Exploding Gradients where the derivatives of the functions become huge because even massive changes only effect the activated output a tiny amount and the net was trying to make some values closer to 0 and some closer to 1.  
+  
+Then I went through the data and cleaned it up to remove all punctuation (except -) and numbers and upper/lowercase letters (this change made in code not in data.txt). This makes the nets job easier and means less training data should be required to get a good result.  
+  
+Next I added a logging system which creates files containing all the predictions the net has made and the parameters of the network which I could then analyse later. These would allow me to see if the network was doing its job and observe any obvious problems in the parameters. The logs remain on my computer at home where I have been able to run all the tests I have required.  
+  
+A significant change I then made was that I fully vectorised the whole process of training. Previously I would forward propagate for one data point, then go calculate the gradients and backpropagate for that one point then move on to the next, but this is inefficient compared to the new approach of forward propagating for all the points and then calculating gradients for all the points then only updating the model weights once. Not only is this more efficient but it also helps the net train because it will have no preference towards the most recently seen data point as it sees every point at once.  
+
+This vectorised process also allowed me to make the program threaded. Using 4 threads rather than one significantly (doubled ish) the speed of the program. Threading essentially takes one process which you want to do a lot of times and distribute each tasks between different threads which will usually run on individual Cores on the CPU. There is overhead managing the threads which means you don't get quite the expected increase in speed (4x off 4 cores) but the speed up is still significant.  
+
+I did some further data cleaning to hopefully confuse the neural net less. (removing random leading - which had appeared and I wasn't sure why but they weren't supposed to be there). This is a hugely important process and not having good data is the main reason neural networks fail to do what you want. They will do exactly as you ask, but that might not be what you want.  
+
+I had been running a lot of (very small) tests throughout this process and I have logs for most of them. It was not able to replicate human names or the structure of these cases. The most important next step for me is to get the Swish activation function working, it seems like it would be very appropriate for the task and is quite exciting.
+
+Later in development I changed the limits on layers using tanh to 3. This seems to be a more normal value in Machine Learning.
 
 ## Information
-Language used: Julia
+Language used: Julia  
 Packages imported: DataFrames, CSV, Dates, ProgressBars
 
 # Conclusion
