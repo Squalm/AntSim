@@ -1394,9 +1394,439 @@ boids = Vector{Float64}[[rand()*3/2*w-w/4, rand()*3/2*h-h/4, (rand()-0.5) * 5, (
 
 # Appendix C
 
-# Appendix D
+# Appendix D  
+Activation Functions:
+```julia
+"""
+Sigmoid Activation function
+"""
+function sigmoid(Z::Array{BigFloat})
+    A = max.(min.(1 ./ (1 .+ exp.(.-Z)), 1-eps(1.0)), eps(1.0))
+    return (A = A, Z = Z)
+end # function
 
-# Appendix E
+"""
+ReLU Activation function
+"""
+function relu(Z)
+    A = max.(0, Z)
+    return (A = A, Z = Z)
+end # function
+
+"""
+Softmax Activation function
+"""
+function softmax(Z::Array{BigFloat})
+    A = max.(exp.(Z) ./ ( sum(exp.(Z))), eps(1.0))
+    return (A = A, Z = Z)
+end # function
+
+"""
+Tanh Activation function
+"""
+function tanhact(Z::Array{BigFloat})
+    A = min.(max.(tanh.(Z), -1.0+eps(1.0)), 1.0-eps(1.0))
+    return (A = A, Z = Z)
+end # function
+
+"""
+Swish Activation function
+"""
+function swish(Z::Array{BigFloat})
+    #Z₁ = sigmoid(Z).A
+    #A = [Z[i] * Z₁[i] for i in 1:length(Z)]
+    A = Z .* sigmoid(Z).A
+    return (A = A, Z = Z)
+end # function
+
+"""
+GELU Activation function
+"""
+function gelu(Z)
+    A = 0.5 * Z * (1 + tanh( sqrt(pi / 2) * (Z + 0.044715 * Z^3) ))
+    return (A = A, Z = Z)
+end # function
+```
+
+Backpropagation:
+```julia
+include("backward_linear_steps.jl")
+
+"""
+compute the gradients (∇) of the parameters (master_cache) of the constructed model with respect to the cost of prediciton (Ŷ) in comparison with actual output (Y).
+"""
+function back_propagate_model_weights(Ŷ, Y, master_cache)
+    # initiate the dictionary to store the gradients for all the components in each layer
+    ∇ = Dict()
+
+    L = length(master_cache)
+    Y = reshape(Y, size(Ŷ))
+
+    # Partial derivate of the output layer
+    δŶ = - (Y / Ŷ) + ((1 .- Y) / (1 .- Ŷ))
+    current_cache = master_cache[L]
+
+    # backpropagate on the layer preceeding the output layer
+    ∇[string("δW_", (L))], ∇[string("δb_", (L))], ∇[string("δA_", (L-1))] = linear_activation_backwards(δŶ, current_cache, activation_function = "softmax")
+    
+    # go backward in the layers and compute the partial derivates of each component
+    for l = reverse(0:L-2)
+        current_cache = master_cache[l+1]
+        ∇[string("δW_", (l+1))], ∇[string("δb_", (l+1))], ∇[string("δA_", (l))] = linear_activation_backwards(∇[string("δA_", (l+1))], current_cache, activation_function="tanh")
+    end # for
+
+    return ∇
+end # function
+```
+
+Backward Linear Functions:
+```julia
+include("backwards_activation_functions.jl")
+
+"""
+Partial derivates of the components of linear forward function using the linear output (δZ) and caches of these components (cache).
+"""
+function linear_backward(δZ, cache)
+    # unpack cache
+    A_prev, W, b = cache
+    m = size(A_prev, 2)
+
+    # partial derivates of each component
+    δW = δZ * (A_prev') / m
+    δb = sum(δZ, dims = 2) / m
+    δA_prev = (W') * δZ
+
+    @assert (size(δA_prev)[1] == size(A_prev)[1])
+    @assert (size(δW) == size(W))
+    @assert (size(δb)[1] == size(b)[1])
+
+    return δW, δb, δA_prev
+end # function
+
+"""
+Unpack the linear activated caches (cache) and compute their derivates from the applied activation function.
+"""
+function linear_activation_backwards(δA, cache; activation_function="relu")
+    @assert activation_function ∈ ("sigmoid", "relu", "softmax", "tanh", "swish")
+
+    linear_cache, cache_activation = cache
+
+    if (activation_function == "relu")
+
+        δZ = relu_backwards(δA, cache_activation)
+
+    elseif (activation_function == "sigmoid")
+
+        δZ = sigmoid_backwards(δA, cache_activation)
+
+    elseif (activation_function ==  "tanh")
+
+        δZ = tanh_backwards(δA, cache_activation)
+
+    elseif (activation_function == "softmax")
+
+        δZ = softmax_backwards(δA, cache_activation)
+        
+    elseif (activation_function == "swish")
+
+        δZ = swish_backwards(δA, cache_activation)
+
+    end # if
+
+    δW, δb, δA_prev = linear_backward(δZ, linear_cache)
+
+    return δW, δb, δA_prev
+end # function
+```
+
+Backwards Activation Functions:
+```julia
+include("activation_functions.jl")
+
+"""
+Derivative of Sigmoid
+"""
+function sigmoid_backwards(δA, activated_cache)
+    s = sigmoid(activated_cache).A
+    s = [max(min(x, 1-(eps(1.0))), eps(1.0)) for x in s]
+    δZ = [δA[i] * s[i] * (1 - s[i]) for i in 1:length(s)]
+
+    #δZ = [log(abs( 1 / x - 1 )) for x in δA]
+    return δZ
+end # function 
+
+"""
+Derivative of ReLU
+"""
+function relu_backwards(δA, activated_cache)
+    return [δA[i] * (activated_cache[i] > 0) for i in 1:length(δA)]
+end # function
+
+"""
+Derivative of Tanh
+"""
+function tanh_backwards(δA, activated_cache)
+    return δA[i] .* (1 .- (tanh(activated_cache[i])).^2)
+end # function
+
+"""
+Derivative of Softmax
+"""
+function softmax_backwards(δA, activated_cache)
+    return δA * ( - exp.(activated_cache) .* sum(exp.(activated_cache)) )
+end # function
+
+"""
+Derivative of Swish
+"""
+function swish_backwards(δA, activated_cache)
+    # β = 1
+    return δA .* (swish(activated_cache).A .+ sigmoid(activated_cache).A .* (1 .- swish(activated_cache).A))
+end # function
+```
+
+Check Accuracy:
+```julia
+"""
+Check the accuracy between predicted values (Ŷ) and the true value (Y).
+"""
+function assess_accuracy(Ŷ, Y)
+    @assert size(Ŷ)[1] == size(Y)[1]
+    return Ŷ[findmax(Y)[2]]
+end # function
+```
+
+Cost:
+```julia
+"""
+Binary Cross Entropy calc.
+"""
+function calculate_cost(Ŷ, Y)
+    m = size(Y, 2)
+    epsilon = eps(1.0)
+
+    # Deal with log(0)
+    Ŷ_new = [min(i, epsilon) for i in [max(i, epsilon) for i in Ŷ]]
+
+    # using hardcoded 29 as number of characters
+    #cost = -sum(Y .* log2.(Ŷ_new) + ((1 + 2/29) .- Y) .* log2.((1 + 2/29) .- Ŷ_new)) /m
+    cost = -sum([ Y[i] == 1 ? log2(abs(Ŷ_new[i])) : log2(abs(Ŷ_new[i] + 27/29)) for i in 1:length(Y)]) /m
+    #cost = -log2(Ŷ_new[findmax(Y)[2]])
+    return cost
+end # function
+```
+
+Forward Propagation:
+```julia
+include("linear_steps.jl")
+
+"""
+Iterate through the layers in the net to get a prediction.
+"""
+function forward_propagate_model_weights(DMatrix, parameters)
+    master_cache = []
+    A = DMatrix
+    L = trunc(Int, length(parameters) / 2)
+
+    # Forawrd propagate until the last layer
+    for l = 1:(L-1)
+        A_prev = A
+        A, cache = linear_forward_activate(A_prev, parameters[string("W_", (l))], parameters[string("b_", (l))], activation_function = "tanh")
+        # Debugging println statements
+        #==if l == L-1
+            println(string(l, " : ", A[1:2]))
+        end # if==#
+        push!(master_cache, cache)
+    end # for
+
+    # For the final layer (outputs)
+    Ŷ, cache = linear_forward_activate(A, parameters[string("W_", (L))], parameters[string("b_", (L))], activation_function = "softmax")
+    # Make sure the outputs are within bounds too
+    push!(master_cache, cache)
+
+    return Ŷ, master_cache
+end # function
+```
+
+Gradient Descent:
+```julia
+"""
+Update the parameters of the model using the gardients (∇) and the learning rate (η).
+"""
+function update_model_weights(parameters, ∇, η)
+    L = trunc(Int, length(parameters) / 2)
+
+    # update the parameters (weights and biases) for all the layers
+    for l = 1:L
+        parameters[string("W_", l)] = min.(max.(parameters[string("W_", l)] - η .* ∇[string("δW_", l)], -100), 100)
+        # try not editign biases, and get swish working
+        parameters[string("b_", l)] = min.(max.(parameters[string("b_", l)] - η .* ∇[string("δb_", l)], -100), 100)
+
+        # Debugging printlns
+        #println(∇[string("δW_", l)][1:5])
+        #println(parameters[string("W_", l)][1:5])
+    end # for
+
+    return parameters
+end # function
+```
+
+Initialise:
+```julia
+using StableRNGs
+
+"""
+Function to initialise the parameters of the desired network.
+"""
+function initialise_model(layer_dims::Vector{Int}, seed::Any)
+    params = Dict()
+
+    for l = 2:length(layer_dims)
+        params[string("W_", (l-1))] = ( rand( StableRNG(seed), layer_dims[l], layer_dims[l-1] ) .- 0.5) * 200#* sqrt(layer_dims[l-1])
+        params[string("b_", (l-1))] = zeros(layer_dims[l], 1)
+    end # for
+
+    return params
+end
+```
+
+Linear steps:
+```julia
+include("activation_functions.jl")
+
+"""
+Make a linear forward calc.
+"""
+function linear_forward(A, W, b)
+    # Make a linear forward and return the inputs as cache
+    Z = BigFloat.((W * A) .+ b)
+    cache = (A, W, b)
+
+    @assert size(Z) == (size(W, 1), size(A, 2))
+
+    return (Z = Z, cache = cache)
+end # function
+
+"""
+Make a forward activation
+"""
+function linear_forward_activate(A_prev, W, b; activation_function = "tanh")
+    @assert activation_function ∈ ("sigmoid", "relu", "softmax", "tanh", "swish")
+    Z, linear_cache = linear_forward(A_prev, W, b)
+
+    if activation_function == "sigmoid"
+        A, activation_cache = sigmoid(Z)
+    elseif activation_function == "relu"
+        A, activation_cache = relu(Z)
+    elseif activation_function == "softmax"
+        A, activation_cache = softmax(Z)
+    elseif activation_function == "tanh"
+        A, activation_cache = tanhact(Z)
+    elseif activation_function == "swish"
+        A, activation_cache = swish(Z)
+    end # if
+
+    cache = (linear_step_cache = linear_cache, activation_step_cache = activation_cache)
+
+    @assert size(A)[1] == size(W, 1)[1]
+
+    return A, cache
+end # function
+```
+
+Train:
+```julia
+using DataFrames, CSV, Dates, ProgressBars
+
+include("initialise.jl")
+include("forward_propagation.jl")
+include("cost.jl")
+include("check_accuracy.jl")
+include("backpropagation.jl")
+include("gradient_descent.jl")
+
+"""
+Train the network using the desired architecture by matching the training inputs (DMatrix) to their
+corresponding outputs (Y) over some number of iterations (epochs) and a learning rate (η).
+"""
+function train_network(layer_dims::Vector{Int64}, DMatrix::Vector{Vector{Float64}}, Y::Vector{Vector{Float64}}, mapping::String; η = 0.001, epochs = 500, seed = 758907)
+
+    η_first = η
+    costs = BigFloat[BigFloat(0.0) for x in 1:length(DMatrix) * epochs]
+    iters = Int[trunc((x-1) / length(DMatrix))+1 for x in 1:length(DMatrix) * epochs]
+    confidence = BigFloat[BigFloat(0.0) for x in 1:length(DMatrix) * epochs]
+    YvŶ = Vector{Char}[Char[' ' for x in 1:length(DMatrix) * epochs], Char[' ' for x in 1:length(DMatrix) * epochs]]
+    mapping *= "#"
+
+    # initialise
+    params = initialise_model(layer_dims, seed)
+
+    # LOGGING
+    d = string(Dates.now())[1:13] * "-" * string(Dates.now())[15:16]
+
+    # train
+    for i = 1:epochs
+
+        Ŷ = Any[[] for x in 1:length(DMatrix)]
+        caches = [[] for x in 1:length(DMatrix)]
+
+        iter = ProgressBar(1:length(DMatrix))
+        set_description(iter, "Epoch $i 1/6 Forward Propagating")
+
+        Threads.@threads for datum in iter
+            Ŷ[datum], caches[datum] = forward_propagate_model_weights(DMatrix[datum], params)
+        end # for
+
+        set_description(iter, "Epoch $i 2/6 Calculating Costs") # I sorta modified this step...
+
+        Threads.@threads for datum in iter
+            costs[(i-1) * length(DMatrix) + datum] = calculate_cost(Ŷ[datum], Y[datum])
+        end # for
+
+        set_description(iter, "Epoch $i 3/6 Calculating Confidence")
+
+        Threads.@threads for datum in iter
+            confidence[(i-1) * length(DMatrix) + datum] = assess_accuracy(Ŷ[datum], Y[datum])
+        end # for
+
+        set_description(iter, "Epoch $i 4/6 Calculating Gradients")
+
+        ∇ = Any[missing for x in 1:length(DMatrix)]
+        Threads.@threads for datum in iter
+            ∇[datum] = back_propagate_model_weights(Ŷ[datum], Y[datum], caches[datum])
+        end # for
+
+        iter = ProgressBar(1:length(collect(keys(params))))
+        set_description(iter, "Epoch $i 5/6 Updating Model Params")
+        ∇_avg = Dict()
+
+        for x in iter
+            ∇_avg[string("δ", collect(keys(params))[x])] = sum([δ[string("δ", collect(keys(params))[x])] for δ in ∇]) / length(∇)
+        end # for
+
+        params = update_model_weights(params, ∇_avg, η)
+
+        iter = ProgressBar(1:length(DMatrix))
+        set_description(iter, "Epoch $i 6/6 Logging calcs")
+
+        for datum in iter
+            YvŶ[1][(i-1) * length(DMatrix) + datum] = mapping[findmax(Y[datum])[2]]
+            YvŶ[2][(i-1) * length(DMatrix) + datum] = mapping[findmax(Ŷ[datum])[2][1]]
+        end # for
+
+        open("case_names/logs/$d LOG.csv", "w") do io
+            CSV.write(io, DataFrame([iters, costs, confidence, [(YvŶ[1][x] == YvŶ[2][x]) for x in 1:length(YvŶ[1])], YvŶ[1], YvŶ[2]], :auto), header=["Iteration", "Cost", "Accuracy", "Correct", "Answer", "Guess"])
+        end # do
+        open("case_names/logs/$d PAR.csv", "w") do io
+            CSV.write(io, DataFrame([collect(values(params))], :auto), header=collect(keys(params)))
+        end # do
+
+    end # for
+
+    return (cost = costs, iterations = iters, confidence = confidence, parameters = params)
+
+end # function
+```
 
 # Bibliography
 1. _12 Types of Neural Networks Activation Functions: How to Choose?_ (no date). Available at: [https://www.v7labs.com/blog/neural-networks-activation-functions](https://www.v7labs.com/blog/neural-networks-activation-functions) (Accessed: 3 December 2021).
