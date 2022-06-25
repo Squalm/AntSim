@@ -379,7 +379,7 @@ function ants(points::Vector{Vector{Float64}}, iters = 500, n = 20, evaporation 
 			for order in orders
 
 				# Run optimisation (decrosses most crossed lines)
-				# on each order, limited to making 10 changes.
+				# on each order, limited to making k changes.
 				order = decross(order, points, 3)
 
 			end # for
@@ -461,7 +461,7 @@ function draw(ph::Matrix{Float64})
 
 end # function
 
-t = gen_points(50, 2)
+t = gen_points(18, 2)
 
 a = ants(t, 20000, 50, 0.1, 2.0, true)
 println("Ants solution: " * string(a.order) * " Distance: " * string(a.distance))
